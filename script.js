@@ -1083,3 +1083,64 @@
         el.textContent = new Date().getFullYear();
     });
 })();
+
+/* --------------------------------------------------------------------------
+   Booking: any link with data-book opens the Cal.com calendar as a pop-up.
+   If the pop-up can't load, the link still opens the booking page in a new tab.
+   -------------------------------------------------------------------------- */
+(function () {
+    "use strict";
+    var links = document.querySelectorAll("a[data-book]");
+    if (!links.length) return;
+
+    var CAL_LINK = "daniel-li-160i64/danlisnaps";
+
+    // Cal.com's standard embed loader
+    (function (C, A, L) {
+        var p = function (a, ar) { a.q.push(ar); };
+        var d = C.document;
+        C.Cal = C.Cal || function () {
+            var cal = C.Cal, ar = arguments;
+            if (!cal.loaded) {
+                cal.ns = {}; cal.q = cal.q || [];
+                d.head.appendChild(d.createElement("script")).src = A;
+                cal.loaded = true;
+            }
+            if (ar[0] === L) {
+                var api = function () { p(api, arguments); };
+                var namespace = ar[1];
+                api.q = api.q || [];
+                if (typeof namespace === "string") {
+                    cal.ns[namespace] = cal.ns[namespace] || api;
+                    p(cal.ns[namespace], ar);
+                    p(cal, ["initNamespace", namespace]);
+                } else p(cal, ar);
+                return;
+            }
+            p(cal, ar);
+        };
+    })(window, "https://app.cal.com/embed/embed.js", "init");
+
+    window.Cal("init", "book", { origin: "https://cal.com" });
+    var accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    window.Cal.ns.book("ui", {
+        theme: "light",
+        cssVarsPerTheme: accent ? { light: { "cal-brand": accent } } : undefined,
+        hideEventTypeDetails: false,
+        layout: "month_view"
+    });
+
+    links.forEach(function (link) {
+        link.addEventListener("click", function (e) {
+            // Only take over the click once Cal.com's script has loaded;
+            // otherwise the link opens the booking page in a new tab.
+            if (!window.__calReady) return;
+            e.preventDefault();
+            window.Cal.ns.book("modal", { calLink: CAL_LINK, config: { layout: "month_view" } });
+        });
+    });
+
+    // Mark ready once the embed script has loaded
+    var s = document.querySelector('script[src*="app.cal.com/embed/embed.js"]');
+    if (s) s.addEventListener("load", function () { window.__calReady = true; });
+})();
